@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X를 찾아서</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #0a0907;
+    --sand-deep: #1a1611;
+    --sand: #2a2419;
+    --dust: #6b5d44;
+    --bone: #c4b896;
+    --pale: #e8dfc8;
+    --light: #f4ecd6;
+    --ember: #d99a4e;
+    --ember-soft: #e8b873;
+    --water: #6ba3b0;
+    --water-soft: #9fc8d0;
+    --blood: #8a4332;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
+  body {
+    font-family: 'Gowun Batang', serif;
+    background: var(--void);
+    color: var(--pale);
+    line-height: 1.9;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .atmosphere {
+    position: fixed; inset: 0; z-index: 0;
+    transition: background 4s ease-in-out;
+    background:
+      radial-gradient(ellipse 120% 80% at 50% 120%, var(--sand) 0%, transparent 60%),
+      radial-gradient(ellipse 100% 60% at 50% -20%, var(--sand-deep) 0%, transparent 50%),
+      var(--void);
+  }
+  .atmosphere.water-scene {
+    background:
+      radial-gradient(ellipse 120% 80% at 50% 120%, #1a3a40 0%, transparent 60%),
+      radial-gradient(ellipse 100% 60% at 50% -20%, #14282e 0%, transparent 50%),
+      #060d0f;
+  }
+  .atmosphere.dark-scene {
+    background:
+      radial-gradient(ellipse 100% 60% at 50% 50%, #14110c 0%, transparent 70%),
+      var(--void);
+  }
+  .grain {
+    position: fixed; inset: 0; z-index: 1;
+    pointer-events: none; opacity: 0.04;
+    background-image:
+      repeating-radial-gradient(circle at 17% 23%, var(--bone) 0px, transparent 1px),
+      repeating-radial-gradient(circle at 73% 61%, var(--bone) 0px, transparent 1px),
+      repeating-radial-gradient(circle at 41% 87%, var(--bone) 0px, transparent 1px);
+    background-size: 13px 13px, 19px 19px, 23px 23px;
+  }
+  .dust-particle {
+    position: fixed; width: 2px; height: 2px;
+    background: var(--bone); border-radius: 50%;
+    opacity: 0; z-index: 2; pointer-events: none;
+  }
+  .game {
+    position: relative; z-index: 3;
+    max-width: 680px; margin: 0 auto;
+    min-height: 100vh;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 4rem 1.8rem;
+  }
+  .title-screen { text-align: center; animation: slowFade 3s ease-out; }
+  @keyframes slowFade { from { opacity: 0; } to { opacity: 1; } }
+  .title-art { width: 100%; max-width: 360px; margin: 0 auto 1.5rem; display: block; }
+  .title-mark {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: clamp(3.5rem, 15vw, 7rem);
+    font-weight: 800; color: var(--ember);
+    line-height: 1; letter-spacing: 0.05em;
+    text-shadow: 0 0 60px rgba(217, 154, 78, 0.3);
+    margin-bottom: 0.3rem;
+    animation: emberGlow 6s ease-in-out infinite;
+  }
+  @keyframes emberGlow {
+    0%, 100% { text-shadow: 0 0 60px rgba(217, 154, 78, 0.25); }
+    50% { text-shadow: 0 0 90px rgba(217, 154, 78, 0.45); }
+  }
+  .title-name {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: clamp(1.4rem, 4.5vw, 2rem);
+    font-weight: 700; color: var(--light);
+    letter-spacing: 0.35em; margin-bottom: 2rem;
+    padding-left: 0.35em;
+  }
+  .title-line { width: 60px; height: 1px; background: var(--dust); margin: 0 auto 2rem; }
+  .title-desc {
+    color: var(--bone); font-size: 1rem; line-height: 2;
+    margin-bottom: 2.5rem; opacity: 0.85;
+  }
+  .title-desc .quiet { color: var(--dust); font-size: 0.92rem; }
+  .scene { display: none; }
+  .scene.active { display: block; }
+  .chapter-mark {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 0.8rem; letter-spacing: 0.3em;
+    color: var(--dust); text-align: center;
+    margin-bottom: 2rem; opacity: 0;
+    animation: fadeIn 2s ease-out forwards;
+  }
+  @keyframes fadeIn { to { opacity: 1; } }
+  .scene-illustration {
+    width: 100%; margin: 0 auto 2.5rem; display: block;
+    opacity: 0; filter: blur(10px);
+    animation: illusReveal 2.6s ease-out forwards;
+  }
+  @keyframes illusReveal {
+    from { opacity: 0; filter: blur(10px); transform: scale(1.04); }
+    to { opacity: 1; filter: blur(0); transform: scale(1); }
+  }
+  .narration { font-size: 1.12rem; color: var(--pale); margin-bottom: 1.5rem; min-height: 1.9em; }
+  .narration p { margin-bottom: 1.3rem; opacity: 0; animation: lineRise 1.2s ease-out forwards; }
+  @keyframes lineRise {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .narration p.pause {
+    color: var(--dust); text-align: center;
+    letter-spacing: 0.3em; font-size: 1.4rem;
+  }
+  .narration p.whisper {
+    color: var(--bone); font-style: italic;
+    text-align: center; font-size: 1.05rem;
+  }
+  .narration p.x-voice {
+    color: var(--ember-soft); font-family: 'Nanum Myeongjo', serif;
+    text-align: center; font-size: 1.25rem; letter-spacing: 0.04em;
+    text-shadow: 0 0 30px rgba(217, 154, 78, 0.3); margin: 2rem 0;
+  }
+  .narration p.letter {
+    color: var(--light); background: rgba(196, 184, 150, 0.06);
+    border-left: 2px solid var(--ember); padding: 1.2rem 1.5rem;
+    font-size: 1.1rem; line-height: 1.8;
+  }
+  .narration p.water-voice {
+    color: var(--water-soft); font-family: 'Nanum Myeongjo', serif;
+    text-align: center; font-size: 1.25rem; letter-spacing: 0.04em;
+    text-shadow: 0 0 30px rgba(107, 163, 176, 0.4); margin: 2rem 0;
+  }
+  .photo {
+    border: 1px solid var(--sand); background: rgba(0,0,0,0.3);
+    padding: 1rem; margin: 1.5rem 0; opacity: 0;
+    animation: photoFade 1.8s ease-out forwards;
+  }
+  @keyframes photoFade {
+    from { opacity: 0; filter: blur(8px); }
+    to { opacity: 1; filter: blur(0); }
+  }
+  .photo .frame { border: 1px solid var(--dust); padding: 1rem; text-align: center; }
+  .photo .photo-art { width: 100%; max-width: 320px; margin: 0 auto 0.9rem; display: block; }
+  .photo .photo-label {
+    font-size: 0.75rem; letter-spacing: 0.25em;
+    color: var(--dust); margin-bottom: 0.8rem;
+  }
+  .photo .photo-desc { color: var(--bone); font-size: 1.02rem; line-height: 1.8; }
+  .choices { margin-top: 2.5rem; display: flex; flex-direction: column; gap: 0.8rem; opacity: 0; }
+  .choices.show { animation: choicesRise 1.4s ease-out forwards; }
+  @keyframes choicesRise {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .choice {
+    background: transparent; border: 1px solid var(--sand);
+    color: var(--pale); font-family: 'Gowun Batang', serif;
+    font-size: 1.02rem; padding: 1.1rem 1.4rem;
+    text-align: left; cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.2, 0, 0.2, 1);
+    line-height: 1.6; position: relative;
+  }
+  .choice::before {
+    content: '—'; color: var(--dust);
+    margin-right: 0.8rem; transition: color 0.5s, margin 0.5s;
+  }
+  .choice:hover {
+    border-color: var(--ember); color: var(--light);
+    background: rgba(217, 154, 78, 0.05); padding-left: 1.8rem;
+  }
+  .choice:hover::before { color: var(--ember); }
+  .continue { margin-top: 2.5rem; text-align: center; opacity: 0; }
+  .continue.show { animation: choicesRise 1.4s ease-out forwards; }
+  .continue button {
+    background: transparent; border: none; color: var(--dust);
+    font-family: 'Nanum Myeongjo', serif; font-size: 0.9rem;
+    letter-spacing: 0.3em; cursor: pointer;
+    padding: 0.8rem 2rem; transition: color 0.5s;
+  }
+  .continue button:hover { color: var(--ember); }
+  .continue button::after { content: ' ›'; }
+  .ending { text-align: center; }
+  .ending-mark {
+    font-family: 'Nanum Myeongjo', serif; font-size: 0.8rem;
+    letter-spacing: 0.4em; color: var(--dust); margin-bottom: 2rem;
+  }
+  .ending-title {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: clamp(1.8rem, 6vw, 2.8rem);
+    font-weight: 800; margin-bottom: 2rem; line-height: 1.4;
+  }
+  .ending-title.true { color: var(--water-soft); text-shadow: 0 0 50px rgba(107, 163, 176, 0.35); }
+  .ending-title.bad { color: var(--dust); }
+  .ending-verse {
+    font-family: 'Nanum Myeongjo', serif; color: var(--bone);
+    font-size: 1.1rem; line-height: 2.1; margin: 2rem 0; padding: 0 1rem;
+  }
+  .ending-verse cite {
+    display: block; margin-top: 1rem; font-style: normal;
+    font-size: 0.9rem; color: var(--dust); letter-spacing: 0.15em;
+  }
+  .controls {
+    position: fixed; top: 1.5rem; right: 1.5rem; z-index: 10;
+    display: flex; gap: 0.8rem;
+  }
+  .ctrl-btn {
+    background: rgba(10, 9, 7, 0.6); border: 1px solid var(--sand);
+    color: var(--dust); width: 38px; height: 38px;
+    border-radius: 50%; cursor: pointer; font-size: 0.9rem;
+    transition: all 0.3s; backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ctrl-btn:hover { color: var(--ember); border-color: var(--ember); }
+  .stats-panel {
+    position: fixed; top: 4.5rem; right: 1.5rem; z-index: 10;
+    background: rgba(10, 9, 7, 0.92); border: 1px solid var(--sand);
+    padding: 1.2rem 1.4rem; width: 200px; display: none;
+    backdrop-filter: blur(8px);
+  }
+  .stats-panel.show { display: block; animation: fadeIn 0.4s ease-out forwards; opacity: 1; }
+  .stats-panel h4 {
+    font-family: 'Nanum Myeongjo', serif; font-size: 0.75rem;
+    letter-spacing: 0.2em; color: var(--dust);
+    margin-bottom: 1rem; text-align: center;
+  }
+  .stat-line { margin-bottom: 0.9rem; }
+  .stat-line:last-child { margin-bottom: 0; }
+  .stat-line .stat-name {
+    font-size: 0.8rem; color: var(--bone);
+    display: flex; justify-content: space-between; margin-bottom: 0.3rem;
+  }
+  .stat-bar { height: 3px; background: var(--sand); overflow: hidden; }
+  .stat-fill { height: 100%; transition: width 1s ease-out; }
+  .stat-fill.water { background: var(--water); }
+  .stat-fill.faith { background: var(--ember); }
+  .stat-fill.confusion { background: var(--blood); }
+  .fade-overlay {
+    position: fixed; inset: 0; background: var(--void); z-index: 50;
+    opacity: 0; pointer-events: none; transition: opacity 1.2s ease-in-out;
+  }
+  .fade-overlay.active { opacity: 1; pointer-events: all; }
+  .start-btn {
+    background: transparent; border: 1px solid var(--ember);
+    color: var(--ember-soft); font-family: 'Nanum Myeongjo', serif;
+    font-size: 1rem; letter-spacing: 0.3em;
+    padding: 1rem 3rem; cursor: pointer; transition: all 0.5s;
+    padding-left: calc(3rem + 0.3em);
+  }
+  .start-btn:hover {
+    background: rgba(217, 154, 78, 0.08); color: var(--light);
+    box-shadow: 0 0 40px rgba(217, 154, 78, 0.15);
+  }
+  .resume-link {
+    display: block; margin-top: 1.5rem; background: none; border: none;
+    color: var(--dust); font-family: 'Gowun Batang', serif;
+    font-size: 0.85rem; letter-spacing: 0.15em;
+    cursor: pointer; transition: color 0.4s;
+  }
+  .resume-link:hover { color: var(--bone); }
+  @media (max-width: 520px) {
+    .game { padding: 3rem 1.4rem; }
+    .narration { font-size: 1.05rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="atmosphere" id="atmosphere"></div>
+<div class="grain"></div>
+
+<div class="controls">
+  <button class="ctrl-btn" onclick="toggleStats()" title="상태">◷</button>
+  <button class="ctrl-btn" onclick="confirmRestart()" title="처음부터">↺</button>
+</div>
+
+<div class="stats-panel" id="stats-panel">
+  <h4>지금 너의 상태</h4>
+  <div class="stat-line">
+    <div class="stat-name"><span>물</span><span id="stat-water-val">—</span></div>
+    <div class="stat-bar"><div class="stat-fill water" id="stat-water" style="width:0%"></div></div>
+  </div>
+  <div class="stat-line">
+    <div class="stat-name"><span>믿음</span><span id="stat-faith-val">—</span></div>
+    <div class="stat-bar"><div class="stat-fill faith" id="stat-faith" style="width:0%"></div></div>
+  </div>
+  <div class="stat-line">
+    <div class="stat-name"><span>혼란</span><span id="stat-confusion-val">—</span></div>
+    <div class="stat-bar"><div class="stat-fill confusion" id="stat-confusion" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="fade-overlay" id="fade"></div>
+
+<div class="game">
+  <div class="title-screen" id="title-screen">
+    <div id="title-art-holder"></div>
+    <div class="title-mark">X</div>
+    <div class="title-name">를 찾아서</div>
+    <div class="title-line"></div>
+    <div class="title-desc">
+      광야에서 눈을 떴다.<br>
+      어떻게 이곳에 왔는지 기억나지 않는다.<br>
+      <span class="quiet">누군가 남긴 흔적을 따라가야 한다.</span>
+    </div>
+    <button class="start-btn" onclick="startGame()">시 작 하 기</button>
+    <button class="resume-link" id="resume-link" style="display:none;" onclick="resumeGame()">이어서 하기</button>
+  </div>
+
+  <div class="scene" id="scene">
+    <div class="chapter-mark" id="chapter-mark"></div>
+    <div id="illustration-holder"></div>
+    <div class="narration" id="narration"></div>
+    <div class="choices" id="choices"></div>
+    <div class="continue" id="continue"></div>
+  </div>
+</div>
+
+<script>
+// ============================================
+// 챕터 일러스트 (SVG 인라인)
+// ============================================
+const ILLUSTRATIONS = {
+  desert: `<svg viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="dSky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1a1611"/><stop offset="55%" stop-color="#2a2419"/><stop offset="100%" stop-color="#3a3020"/>
+      </linearGradient>
+      <radialGradient id="dSun" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#e8b873"/><stop offset="60%" stop-color="#d99a4e" stop-opacity="0.5"/><stop offset="100%" stop-color="#d99a4e" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="480" height="280" fill="url(#dSky)"/>
+    <circle class="illust-sun" cx="240" cy="120" r="70" fill="url(#dSun)"/>
+    <circle cx="240" cy="120" r="22" fill="#e8b873" opacity="0.85"/>
+    <path d="M0 175 Q120 145 240 168 T480 158 V280 H0 Z" fill="#3a3020" opacity="0.7"/>
+    <path d="M0 210 Q150 178 300 205 T480 195 V280 H0 Z" fill="#2a2419"/>
+    <path d="M0 250 Q140 222 280 248 T480 240 V280 H0 Z" fill="#1a1611"/>
+    <g transform="translate(212 196)">
+      <rect x="6" y="20" width="4" height="34" fill="#0a0907"/>
+      <rect x="-6" y="6" width="28" height="18" rx="3" fill="#0a0907"/>
+      <path d="M-6 6 Q8 -4 22 6" fill="none" stroke="#0a0907" stroke-width="5"/>
+      <rect x="20" y="9" width="3" height="9" fill="#d99a4e" opacity="0.8"/>
+    </g>
+    <circle class="illust-star" cx="60" cy="45" r="1.5" fill="#e8dfc8" style="animation-delay:0s"/>
+    <circle class="illust-star" cx="410" cy="60" r="1.5" fill="#e8dfc8" style="animation-delay:1.5s"/>
+    <circle class="illust-star" cx="380" cy="30" r="1" fill="#e8dfc8" style="animation-delay:2.5s"/>
+  </svg>`,
+  tree: `<svg viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="tSky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#221b12"/><stop offset="100%" stop-color="#3a3020"/>
+      </linearGradient>
+    </defs>
+    <rect width="480" height="280" fill="url(#tSky)"/>
+    <path d="M0 235 Q160 212 320 232 T480 224 V280 H0 Z" fill="#1a1611"/>
+    <g stroke="#0a0907" fill="none" stroke-linecap="round">
+      <path d="M240 250 L240 120" stroke-width="9"/>
+      <path d="M240 150 Q210 130 188 95" stroke-width="6"/>
+      <path d="M240 138 Q272 122 300 90" stroke-width="6"/>
+      <path d="M240 120 Q232 96 220 78" stroke-width="5"/>
+      <path d="M240 120 Q252 100 268 84" stroke-width="5"/>
+      <path d="M188 95 Q178 82 170 72" stroke-width="3"/>
+      <path d="M300 90 Q312 78 320 68" stroke-width="3"/>
+    </g>
+    <g class="illust-photo-sway" style="animation-delay:0s">
+      <line x1="195" y1="98" x2="195" y2="112" stroke="#6b5d44" stroke-width="1.5"/>
+      <rect x="178" y="112" width="34" height="40" fill="#e8dfc8" stroke="#6b5d44" stroke-width="1.5"/>
+      <rect x="183" y="117" width="24" height="22" fill="#d99a4e" opacity="0.4"/>
+    </g>
+    <g class="illust-photo-sway" style="animation-delay:1.2s">
+      <line x1="285" y1="95" x2="285" y2="109" stroke="#6b5d44" stroke-width="1.5"/>
+      <rect x="268" y="109" width="34" height="40" fill="#e8dfc8" stroke="#6b5d44" stroke-width="1.5"/>
+      <rect x="273" y="114" width="24" height="22" fill="#8a4332" opacity="0.4"/>
+    </g>
+    <g class="illust-photo-sway" style="animation-delay:2.4s">
+      <line x1="222" y1="82" x2="222" y2="95" stroke="#6b5d44" stroke-width="1.5"/>
+      <rect x="206" y="95" width="32" height="38" fill="#e8dfc8" stroke="#6b5d44" stroke-width="1.5"/>
+      <rect x="211" y="100" width="22" height="20" fill="#6b5d44" opacity="0.5"/>
+    </g>
+    <g class="illust-photo-sway" style="animation-delay:3s">
+      <line x1="262" y1="86" x2="262" y2="99" stroke="#6b5d44" stroke-width="1.5"/>
+      <rect x="246" y="99" width="32" height="38" fill="#e8dfc8" stroke="#6b5d44" stroke-width="1.5"/>
+      <rect x="251" y="104" width="22" height="20" fill="#9fc8d0" opacity="0.35"/>
+    </g>
+    <circle class="illust-star" cx="90" cy="50" r="1.5" fill="#c4b896" style="animation-delay:0.5s"/>
+    <circle class="illust-star" cx="400" cy="65" r="1.5" fill="#c4b896" style="animation-delay:2s"/>
+  </svg>`,
+  footprints: `<svg viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="fSky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2a1f14"/><stop offset="100%" stop-color="#48381f"/>
+      </linearGradient>
+      <radialGradient id="fGlow" cx="50%" cy="0%" r="80%">
+        <stop offset="0%" stop-color="#d99a4e" stop-opacity="0.4"/><stop offset="100%" stop-color="#d99a4e" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="480" height="280" fill="url(#fSky)"/>
+    <rect width="480" height="160" fill="url(#fGlow)"/>
+    <ellipse class="illust-sun" cx="240" cy="92" rx="44" ry="20" fill="#e8b873" opacity="0.7"/>
+    <path d="M0 150 Q240 130 480 150 V280 H0 Z" fill="#3a3020"/>
+    <path d="M0 180 Q240 165 480 180 V280 H0 Z" fill="#2a2419"/>
+    <g fill="#0a0907">
+      <ellipse cx="205" cy="160" rx="3" ry="5" opacity="0.5"/>
+      <ellipse cx="200" cy="178" rx="4" ry="6.5" opacity="0.6"/>
+      <ellipse cx="194" cy="200" rx="5.5" ry="8.5" opacity="0.7"/>
+      <ellipse cx="186" cy="228" rx="7.5" ry="11" opacity="0.85"/>
+      <ellipse cx="176" cy="262" rx="10" ry="14" opacity="1"/>
+      <ellipse cx="248" cy="160" rx="3.3" ry="5.5" opacity="0.6"/>
+      <ellipse cx="255" cy="178" rx="4.5" ry="7" opacity="0.7"/>
+      <ellipse cx="264" cy="200" rx="6" ry="9.5" opacity="0.85"/>
+      <ellipse cx="276" cy="228" rx="8.5" ry="12" opacity="0.95"/>
+      <ellipse cx="291" cy="262" rx="11" ry="15" opacity="1"/>
+    </g>
+    <circle class="illust-star" cx="70" cy="45" r="1.5" fill="#e8dfc8" style="animation-delay:1s"/>
+    <circle class="illust-star" cx="420" cy="55" r="1.5" fill="#e8dfc8" style="animation-delay:2.8s"/>
+  </svg>`,
+  letter: `<svg viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="lSky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1a1611"/><stop offset="100%" stop-color="#332915"/>
+      </linearGradient>
+      <radialGradient id="lLetterGlow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#f4ecd6" stop-opacity="0.55"/><stop offset="100%" stop-color="#f4ecd6" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="480" height="280" fill="url(#lSky)"/>
+    <path d="M0 230 Q240 210 480 230 V280 H0 Z" fill="#1a1611"/>
+    <ellipse class="illust-glow" cx="240" cy="150" rx="130" ry="90" fill="url(#lLetterGlow)"/>
+    <g transform="translate(150 120)">
+      <rect x="30" y="60" width="10" height="80" fill="#0a0907"/>
+      <rect x="0" y="20" width="70" height="46" rx="7" fill="#221b12" stroke="#0a0907" stroke-width="3"/>
+      <path d="M0 20 Q35 -8 70 20" fill="#1a1611" stroke="#0a0907" stroke-width="6"/>
+      <rect x="66" y="28" width="6" height="20" fill="#d99a4e"/>
+      <rect x="4" y="40" width="30" height="22" rx="3" fill="#0a0907" transform="rotate(-25 4 62)"/>
+    </g>
+    <g transform="translate(214 128) rotate(-6)">
+      <rect width="80" height="100" rx="3" fill="#f4ecd6" stroke="#c4b896" stroke-width="1.5"/>
+      <line x1="14" y1="26" x2="66" y2="26" stroke="#6b5d44" stroke-width="2" opacity="0.6"/>
+      <line x1="14" y1="42" x2="66" y2="42" stroke="#6b5d44" stroke-width="2" opacity="0.45"/>
+      <line x1="14" y1="58" x2="52" y2="58" stroke="#6b5d44" stroke-width="2" opacity="0.45"/>
+      <text x="40" y="80" font-family="serif" font-size="34" fill="#d99a4e" text-anchor="middle" font-weight="bold">X</text>
+    </g>
+    <circle class="illust-star" cx="80" cy="50" r="1.5" fill="#e8dfc8" style="animation-delay:0s"/>
+    <circle class="illust-star" cx="395" cy="48" r="1.5" fill="#e8dfc8" style="animation-delay:1.7s"/>
+    <circle class="illust-star" cx="430" cy="80" r="1" fill="#e8dfc8" style="animation-delay:3s"/>
+  </svg>`,
+  water: `<svg viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="wSky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#14282e"/><stop offset="60%" stop-color="#1a3a40"/><stop offset="100%" stop-color="#2a5560"/>
+      </linearGradient>
+      <linearGradient id="wRiver" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#9fc8d0"/><stop offset="100%" stop-color="#2a5560"/>
+      </linearGradient>
+      <radialGradient id="wFigure" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="#f4ecd6" stop-opacity="0.95"/><stop offset="45%" stop-color="#e8b873" stop-opacity="0.6"/><stop offset="100%" stop-color="#e8b873" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="480" height="280" fill="url(#wSky)"/>
+    <ellipse class="illust-glow" cx="240" cy="130" rx="120" ry="130" fill="url(#wFigure)"/>
+    <path d="M0 195 Q240 178 480 195 V280 H0 Z" fill="url(#wRiver)"/>
+    <g stroke="#e8dfc8" fill="none" stroke-linecap="round" opacity="0.5">
+      <path class="illust-ripple" d="M40 218 q20 -6 40 0 t40 0" stroke-width="2" style="animation-delay:0s"/>
+      <path class="illust-ripple" d="M280 232 q22 -6 44 0 t44 0" stroke-width="2" style="animation-delay:2s"/>
+      <path class="illust-ripple" d="M120 250 q24 -7 48 0 t48 0" stroke-width="2.2" style="animation-delay:3.5s"/>
+      <path class="illust-ripple" d="M300 256 q20 -5 40 0 t40 0" stroke-width="2" style="animation-delay:1s"/>
+    </g>
+    <g transform="translate(240 118)" opacity="0.92">
+      <ellipse cx="0" cy="-18" rx="13" ry="15" fill="#f4ecd6"/>
+      <path d="M-22 70 Q-26 6 0 0 Q26 6 22 70 Z" fill="#f4ecd6"/>
+      <path d="M-18 14 Q-46 22 -58 46" stroke="#f4ecd6" stroke-width="9" fill="none" stroke-linecap="round"/>
+      <path d="M18 14 Q46 22 58 46" stroke="#f4ecd6" stroke-width="9" fill="none" stroke-linecap="round"/>
+    </g>
+    <circle class="illust-star" cx="70" cy="40" r="1.5" fill="#f4ecd6" style="animation-delay:0s"/>
+    <circle class="illust-star" cx="410" cy="55" r="1.5" fill="#f4ecd6" style="animation-delay:1.3s"/>
+    <circle class="illust-star" cx="370" cy="32" r="1" fill="#f4ecd6" style="animation-delay:2.6s"/>
+    <circle class="illust-star" cx="110" cy="68" r="1" fill="#f4ecd6" style="animation-delay:3.4s"/>
+  </svg>`
+};
+
+// ============================================
+// 게임 상태
+// ============================================
+const SAVE_KEY = 'desert_x_save';
+let stats = { water: 50, faith: 30, confusion: 40 };
+let currentScene = 'start';
+function clamp(v) { return Math.max(0, Math.min(100, v)); }
+
+// ============================================
+// 스토리 데이터
+// ============================================
+const STORY = {
+  start: {
+    chapter: 'CHAPTER I  ·  광야와 우편함',
+    illust: 'desert',
+    atmosphere: '',
+    lines: [
+      { t: 'p', text: '광야는 조용하다.' },
+      { t: 'p', text: '눈을 뜬다.' },
+      { t: 'p', text: '입술이 갈라져 있다. 목이 마르다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '눈앞에... 녹슨 우편함 하나가 서 있다.' },
+      { t: 'whisper', text: '이런 곳에, 우편함이.' }
+    ],
+    choices: [
+      { text: '우편함을 연다.', next: 'mailbox', effect: { confusion: -5, faith: +5 } },
+      { text: '주변을 둘러본다. 사람이 있을지도 모른다.', next: 'lookAround', effect: { confusion: +10, water: -5 } },
+      { text: '무시하고 그늘을 찾아 걷는다.', next: 'walkAway', effect: { water: -10, faith: -5, confusion: +5 } }
+    ]
+  },
+  lookAround: {
+    lines: [
+      { t: 'p', text: '모래. 모래. 끝없는 모래.' },
+      { t: 'p', text: '지평선까지 아무것도 없다. 사람의 그림자조차.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '햇빛이 정수리를 누른다. 다리에 힘이 빠진다.' },
+      { t: 'p', text: '결국 시선이 다시 그 우편함으로 돌아온다.' },
+      { t: 'whisper', text: '저것 말고는, 아무것도 없다.' }
+    ],
+    continueTo: 'mailbox'
+  },
+  walkAway: {
+    lines: [
+      { t: 'p', text: '우편함을 등지고 걷는다.' },
+      { t: 'p', text: '한 걸음. 또 한 걸음.' },
+      { t: 'p', text: '모래는 발을 삼키고, 태양은 등을 태운다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '얼마나 걸었을까. 고개를 들자—' },
+      { t: 'p', text: '다시 그 우편함이 눈앞에 있다.' },
+      { t: 'whisper', text: '분명 반대로 걸었는데.' }
+    ],
+    continueTo: 'mailbox'
+  },
+  mailbox: {
+    atmosphere: '',
+    lines: [
+      { t: 'p', text: '우편함의 작은 문은 가볍게 열린다.' },
+      { t: 'p', text: '안에는 접힌 종이 한 장.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '펼친다.' },
+      { t: 'letter', text: '"X를 따라오너라.\n물이 있을 것이다."' },
+      { t: 'whisper', text: 'X. 그 이름을, 나는 아는 것도 같다.' }
+    ],
+    choices: [
+      { text: '"X가 누구지?" — 기억을 더듬어 본다.', next: 'tryRemember', effect: { confusion: +10, faith: +5 } },
+      { text: '편지를 믿고, 흔적을 찾아 나선다.', next: 'chapter2intro', effect: { faith: +15, confusion: -10 } },
+      { text: '"이건 누군가의 장난이야." — 편지를 버린다.', next: 'rejectLetter', effect: { faith: -15, confusion: +15 } }
+    ]
+  },
+  tryRemember: {
+    lines: [
+      { t: 'p', text: '눈을 감는다.' },
+      { t: 'p', text: 'X... X...' },
+      { t: 'p', text: '머릿속에서 무언가 스친다. 따뜻한 손. 누군가의 목소리.' },
+      { t: 'p', text: '그러나 얼굴은 떠오르지 않는다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '다만 한 가지는 분명하다.' },
+      { t: 'whisper', text: '그 이름을 떠올리면, 두렵지 않다.' }
+    ],
+    continueTo: 'chapter2intro'
+  },
+  rejectLetter: {
+    lines: [
+      { t: 'p', text: '종이를 구겨 모래 위에 던진다.' },
+      { t: 'p', text: '"누가 이런 걸로 사람을 가지고 놀아."' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '바람이 분다. 구겨진 종이가 발끝까지 굴러온다.' },
+      { t: 'p', text: '다시. 또다시.' },
+      { t: 'p', text: '몇 번을 던져도, 종이는 돌아온다.' },
+      { t: 'whisper', text: '버릴 수 없는 편지도 있는 걸까.' }
+    ],
+    continueTo: 'chapter2intro'
+  },
+  chapter2intro: {
+    chapter: 'CHAPTER II  ·  기억의 사진들',
+    illust: 'tree',
+    lines: [
+      { t: 'p', text: '편지가 가리키는 방향으로 걷는다.' },
+      { t: 'p', text: '모래 언덕을 넘자, 마른 나무 한 그루.' },
+      { t: 'p', text: '그 가지마다 사진이 매달려 바람에 흔들린다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '낡은 사진들. 그런데 어쩐지— 낯설지 않다.' }
+    ],
+    continueTo: 'photos'
+  },
+  photos: {
+    lines: [
+      { t: 'p', text: '첫 번째 사진을 손에 든다.' },
+      { t: 'photo', label: '사진 · 하나', desc: '많은 사람들이 두 손을 들고 있다.\n빛 속에서, 누군가는 울며 노래하고 있다.\n그 얼굴들 사이에— 너의 얼굴도 있다.' },
+      { t: 'whisper', text: '나는... 저기서 울고 있었다. 왜였더라.' }
+    ],
+    choices: [
+      { text: '그날을 기억해내려 한다.', next: 'photoWorship', effect: { faith: +15, confusion: -5 } },
+      { text: '다음 사진으로 넘어간다.', next: 'photoAccident', effect: { confusion: +5 } }
+    ]
+  },
+  photoWorship: {
+    lines: [
+      { t: 'p', text: '기억이 천천히 번진다.' },
+      { t: 'p', text: '노래가 있었다. 사람들의 목소리가 하나로 모이던 밤.' },
+      { t: 'p', text: '그날 너는 울었다. 슬퍼서가 아니라—' },
+      { t: 'p', text: '혼자가 아니라는 걸, 처음으로 느껴서.' },
+      { t: 'pause', text: '...' },
+      { t: 'whisper', text: '그때 그 자리에, X가 있었던 것 같다.' }
+    ],
+    continueTo: 'photoAccident'
+  },
+  photoAccident: {
+    lines: [
+      { t: 'p', text: '두 번째 사진.' },
+      { t: 'photo', label: '사진 · 둘', desc: '부서진 자동차. 깨진 유리.\n그 옆에 한 사람이 서 있다. 멀쩡히. 살아서.\n......그건, 너다.' },
+      { t: 'p', text: '심장이 내려앉는다.' },
+      { t: 'p', text: '그 사고를. 너는 기억한다.' },
+      { t: 'whisper', text: '그날 나는 분명히— 죽었어야 했다.' }
+    ],
+    choices: [
+      { text: '"어떻게 살아남았지?" 떨리는 손으로 사진을 본다.', next: 'photoAccident2', effect: { faith: +10, confusion: +5 } },
+      { text: '사진을 내려놓는다. 마주하기 두렵다.', next: 'photoPray', effect: { confusion: +15, faith: -5 } }
+    ]
+  },
+  photoAccident2: {
+    lines: [
+      { t: 'p', text: '그날, 모든 것이 느리게 흘렀다.' },
+      { t: 'p', text: '부서지는 소리 한가운데서, 이상하게도—' },
+      { t: 'p', text: '누군가 너를 감싸는 느낌이 있었다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '설명할 수 없다. 그러나 분명히 있었다.' },
+      { t: 'whisper', text: '나는 혼자 그 차 안에 있지 않았다.' }
+    ],
+    continueTo: 'photoPray'
+  },
+  photoPray: {
+    lines: [
+      { t: 'p', text: '세 번째 사진.' },
+      { t: 'photo', label: '사진 · 셋', desc: '어두운 방. 한 사람이 무릎을 꿇고 있다.\n두 손으로 얼굴을 가린 채.\n그 등이— 무너질 듯 떨리고 있다.' },
+      { t: 'p', text: '이 사진은 설명이 필요 없다.' },
+      { t: 'p', text: '가장 낮은 곳에서, 너는 무언가를 불렀다.' },
+      { t: 'whisper', text: '그 밤, 나는 X의 이름을 불렀다.' }
+    ],
+    continueTo: 'photoFuneral'
+  },
+  photoFuneral: {
+    lines: [
+      { t: 'p', text: '마지막 사진.' },
+      { t: 'photo', label: '사진 · 넷', desc: '검은 옷의 사람들. 하얀 국화.\n누군가를 떠나보내는 자리.\n너는 맨 앞에 서서, 오래 울고 있다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '상실. 그 자리의 무게가 다시 어깨를 누른다.' },
+      { t: 'p', text: '그러나 사진 한구석— 너의 어깨 위에 빛이 닿아 있다.' },
+      { t: 'whisper', text: '가장 슬픈 날에도, 빛은 나를 떠나지 않았다.' }
+    ],
+    choices: [
+      { text: '네 장의 사진을 가슴에 안는다.', next: 'chapter3intro', effect: { faith: +15, confusion: -15 } },
+      { text: '"왜 이 사진들을 나에게 보여주는 거야?"', next: 'photoQuestion', effect: { confusion: +10, faith: +5 } }
+    ]
+  },
+  photoQuestion: {
+    lines: [
+      { t: 'p', text: '바람에 대고 묻는다.' },
+      { t: 'p', text: '"왜 하필 이 순간들이지?"' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '대답은 없다. 그러나 문득 깨닫는다.' },
+      { t: 'p', text: '이 네 장에는 공통점이 있다.' },
+      { t: 'p', text: '기쁠 때도, 부서질 때도, 무너질 때도, 잃을 때도—' },
+      { t: 'whisper', text: '그 모든 자리에, 누군가 함께 있었다.' }
+    ],
+    continueTo: 'chapter3intro'
+  },
+  chapter3intro: {
+    chapter: 'CHAPTER III  ·  발자국',
+    illust: 'footprints',
+    lines: [
+      { t: 'p', text: '나무를 떠나 다시 걷는다.' },
+      { t: 'p', text: '해가 기운다. 모래 위로 그림자가 길어진다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '문득, 발밑을 본다.' },
+      { t: 'p', text: '모래 위에 발자국이 찍혀 있다.' },
+      { t: 'p', text: '그런데—' }
+    ],
+    continueTo: 'footprints'
+  },
+  footprints: {
+    lines: [
+      { t: 'p', text: '발자국이, 두 쌍이다.' },
+      { t: 'p', text: '하나는 너의 것.' },
+      { t: 'p', text: '다른 하나는— 너의 것보다 조금 더 깊다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '뒤를 돌아본다. 지나온 모든 길에—' },
+      { t: 'p', text: '두 쌍의 발자국이, 단 한 번도 끊기지 않고 이어져 있다.' },
+      { t: 'whisper', text: '나는, 처음부터 혼자 걷지 않았던 걸까.' }
+    ],
+    choices: [
+      { text: '발자국을 따라 계속 걷는다.', next: 'footprintsFollow', effect: { faith: +15, confusion: -10 } },
+      { text: '걸음을 멈추고, 그 깊은 발자국을 가만히 들여다본다.', next: 'footprintsLook', effect: { faith: +10, confusion: -5 } },
+      { text: '"착각이야. 바람이 만든 자국이겠지."', next: 'footprintsDeny', effect: { faith: -15, confusion: +20 } }
+    ]
+  },
+  footprintsFollow: {
+    lines: [
+      { t: 'p', text: '두 쌍의 발자국을 따라 걷는다.' },
+      { t: 'p', text: '이상하게도, 더 이상 다리가 무겁지 않다.' },
+      { t: 'p', text: '함께 걷고 있다는 감각이, 발걸음을 가볍게 한다.' },
+      { t: 'pause', text: '...' },
+      { t: 'whisper', text: '멀지 않았다. 무언가가, 가까이 있다.' }
+    ],
+    continueTo: 'chapter4intro'
+  },
+  footprintsLook: {
+    lines: [
+      { t: 'p', text: '무릎을 굽혀 그 발자국에 손을 댄다.' },
+      { t: 'p', text: '깊고, 분명하다. 누군가 실제로 이 길을 걸었다.' },
+      { t: 'p', text: '너의 곁에서. 너의 속도에 맞추어.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '가장 힘들었던 구간에서는— 너의 발자국이 보이지 않는다.' },
+      { t: 'p', text: '오직 깊은 발자국 하나만, 그곳에 남아 있다.' },
+      { t: 'whisper', text: '내가 걷지 못한 그곳을, 누가 나를 업고 걸었구나.' }
+    ],
+    continueTo: 'chapter4intro'
+  },
+  footprintsDeny: {
+    lines: [
+      { t: 'p', text: '"바람이야. 그냥 바람이 만든 거야."' },
+      { t: 'p', text: '발자국을 발로 흩어버린다. 빠르게 걷는다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '그러나 다음 걸음에도, 그다음 걸음에도—' },
+      { t: 'p', text: '발자국은 여전히 두 쌍이다.' },
+      { t: 'p', text: '아무리 부정해도, 곁의 발자국은 사라지지 않는다.' },
+      { t: 'whisper', text: '내가 믿지 않아도, 그는 멈추지 않는다.' }
+    ],
+    continueTo: 'chapter4intro'
+  },
+  chapter4intro: {
+    chapter: 'CHAPTER IV  ·  마지막 편지',
+    illust: 'letter',
+    lines: [
+      { t: 'p', text: '발자국이 멈춘 곳에, 또 하나의 우편함이 있다.' },
+      { t: 'p', text: '처음 그것과 똑같이 녹슬어 있다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '손을 뻗는다. 심장이 빠르게 뛴다.' },
+      { t: 'p', text: '안에는, 마지막 편지.' }
+    ],
+    continueTo: 'finalLetter'
+  },
+  finalLetter: {
+    lines: [
+      { t: 'p', text: '편지를 펼친다. 단 한 줄.' },
+      { t: 'letter', text: '"나는 너를 떠난 적이 없다."' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '손이 떨린다.' },
+      { t: 'p', text: '우편함도, 사진도, 발자국도—' },
+      { t: 'p', text: '처음부터 한 사람을 가리키고 있었다.' },
+      { t: 'whisper', text: '광야에서 길을 잃은 줄 알았는데. 사실은—' }
+    ],
+    choices: [
+      { text: '"그렇다면... 나는 한 번도 혼자가 아니었다."', next: 'finalChapter', effect: { faith: +25, confusion: -25 } },
+      { text: '"그럴 리 없어. 나는 분명히 혼자였어."', next: 'finalDoubt', effect: { faith: -10, confusion: +15 } }
+    ]
+  },
+  finalDoubt: {
+    lines: [
+      { t: 'p', text: '"아니야. 나는 외로웠어. 그 모든 밤들—"' },
+      { t: 'p', text: '"아무도 없었어. 정말 아무도."' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '그러나 목소리가 끝까지 나오지 않는다.' },
+      { t: 'p', text: '네 장의 사진이 떠오른다. 두 쌍의 발자국이 떠오른다.' },
+      { t: 'p', text: '외로웠던 것은 사실이다. 그러나—' },
+      { t: 'p', text: '혼자였던 것은, 사실이 아닐지도 모른다.' },
+      { t: 'whisper', text: '느끼지 못했다고 해서, 없었던 것은 아니다.' }
+    ],
+    continueTo: 'finalChapter'
+  },
+  finalChapter: {
+    chapter: 'FINAL  ·  물',
+    illust: 'water',
+    atmosphere: 'water-scene',
+    lines: [
+      { t: 'p', text: '고개를 든다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '광야가, 사라지고 있다.' },
+      { t: 'p', text: '발밑의 모래가 젖은 흙으로 바뀐다.' },
+      { t: 'p', text: '메마른 바람 사이로— 물소리가 들린다.' },
+      { t: 'p', text: '눈앞에 강이 흐른다. 맑고, 깊고, 끝없이.' },
+      { t: 'whisper', text: '편지는 거짓이 아니었다. 물이, 정말로 있었다.' }
+    ],
+    continueTo: 'finalMeeting'
+  },
+  finalMeeting: {
+    atmosphere: 'water-scene',
+    lines: [
+      { t: 'p', text: '강가에, 누군가 서 있다.' },
+      { t: 'p', text: '얼굴은 빛에 싸여 또렷이 보이지 않는다.' },
+      { t: 'p', text: '그러나 너는 안다. 그가 누구인지.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '우편함의 편지를 쓴 이.' },
+      { t: 'p', text: '사진 속 모든 순간에 함께 있던 이.' },
+      { t: 'p', text: '두 쌍의 발자국 중, 더 깊은 한 쌍의 주인.' },
+      { t: 'x-voice', text: '"네가 오기를, 오래 기다렸다."' }
+    ],
+    choices: [
+      { text: '그를 향해 천천히 걸어간다.', next: 'finalConfession', effect: { faith: +20, confusion: -20 } },
+      { text: '"왜 한 번도 모습을 보이지 않으셨나요?"', next: 'finalWhy', effect: { faith: +10, confusion: -10 } }
+    ]
+  },
+  finalWhy: {
+    lines: [
+      { t: 'p', text: '"왜 숨어 계셨나요. 제가 그렇게 찾았는데."' },
+      { t: 'pause', text: '...' },
+      { t: 'x-voice', text: '"숨은 적 없다.\n다만 네가, 나를 볼 눈이 없었을 뿐."' },
+      { t: 'p', text: '그 말이 가슴을 관통한다.' },
+      { t: 'p', text: '그는 광야의 우편함에도, 사진 속에도, 발자국에도 있었다.' },
+      { t: 'p', text: '보이지 않았던 것은 그가 없어서가 아니라—' },
+      { t: 'whisper', text: '내가, 외로움 너머를 보지 못해서였다.' }
+    ],
+    continueTo: 'finalConfession'
+  },
+  finalConfession: {
+    atmosphere: 'water-scene',
+    lines: [
+      { t: 'p', text: '그의 앞에 선다.' },
+      { t: 'p', text: '오래 참았던 말이, 마침내 흘러나온다.' },
+      { t: 'pause', text: '...' },
+      { t: 'whisper', text: '"저는... 늘 혼자라고 생각했어요."' },
+      { t: 'whisper', text: '"그런데— 아니었네요."' },
+      { t: 'p', text: '그는 아무 설명도 하지 않는다.' },
+      { t: 'p', text: '다만, 두 팔을 벌린다.' }
+    ],
+    choices: [
+      { text: '그 품에 안긴다.', next: 'endingTrue', effect: { faith: +30, confusion: -30 } },
+      { text: '"아직은... 믿을 수 없어요." 뒤로 물러선다.', next: 'endingBadCheck', effect: { faith: -20, confusion: +25 } }
+    ]
+  },
+  endingBadCheck: {
+    atmosphere: 'water-scene',
+    lines: [
+      { t: 'p', text: '한 걸음 물러선다.' },
+      { t: 'p', text: '벌어진 두 팔은, 거두어지지 않는다.' },
+      { t: 'p', text: '그는 여전히, 그 자리에서 너를 기다린다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '강물이 발끝에 닿는다. 차갑고, 다정하게.' },
+      { t: 'whisper', text: '돌아설 수도, 안길 수도 있다. 선택은 너의 것.' }
+    ],
+    choices: [
+      { text: '......결국, 그 품으로 걸어 들어간다.', next: 'endingTrue', effect: { faith: +30, confusion: -30 } },
+      { text: '몸을 돌려, 다시 광야로 걸어간다.', next: 'endingBad', effect: { faith: -20, confusion: +20 } }
+    ]
+  }
+};
+
+// ============================================
+// 엔딩
+// ============================================
+const ENDINGS = {
+  endingTrue: {
+    atmosphere: 'water-scene',
+    illust: 'water',
+    mark: 'TRUE ENDING',
+    titleClass: 'true',
+    title: '나는, 혼자가 아니었다',
+    lines: [
+      { t: 'p', text: '그 품에 안긴다.' },
+      { t: 'p', text: '따뜻하다. 오래전부터 알던 온기다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '참았던 울음이 터진다. 그러나 슬픔의 울음이 아니다.' },
+      { t: 'p', text: '광야의 모든 외로움이, 이 강가에서 씻겨 내려간다.' },
+      { t: 'p', text: '우편함도, 사진도, 발자국도— 모두 한 사랑이 남긴 흔적이었다.' },
+      { t: 'water-voice', text: '"내가 세상 끝날까지\n너희와 항상 함께 있으리라."' }
+    ],
+    verse: '"내가 산을 향하여 눈을 들리라<br>나의 도움이 어디서 올까<br>나의 도움은 천지를 지으신<br>여호와에게서로다"',
+    cite: '— 시편 121편 1-2절',
+    closing: 'X는, 한 번도 너를 떠난 적이 없는 하나님이셨다.'
+  },
+  endingBad: {
+    atmosphere: 'dark-scene',
+    mark: 'ENDING',
+    titleClass: 'bad',
+    title: '다시, 광야로',
+    lines: [
+      { t: 'p', text: '몸을 돌린다.' },
+      { t: 'p', text: '강물 소리가 등 뒤로 멀어진다.' },
+      { t: 'pause', text: '...' },
+      { t: 'p', text: '다시 모래. 다시 갈증. 다시 끝없는 지평선.' },
+      { t: 'p', text: '얼마쯤 걸었을까. 고개를 들자—' },
+      { t: 'p', text: '눈앞에, 녹슨 우편함 하나가 서 있다.' },
+      { t: 'p', text: '그 안에는, 접힌 편지 한 장.' },
+      { t: 'whisper', text: '"X를 따라오너라. 물이 있을 것이다."' },
+      { t: 'p', text: '그는 여전히, 너를 부르고 있다.' }
+    ],
+    verse: '"볼지어다 내가 문 밖에 서서 두드리노니<br>누구든지 내 음성을 듣고 문을 열면<br>내가 그에게로 들어가리라"',
+    cite: '— 요한계시록 3장 20절',
+    closing: '광야는 끝나지 않았다. 그러나 부름도, 끝나지 않았다.'
+  }
+};
+
+// ============================================
+// 렌더링 엔진
+// ============================================
+const lineDelay = 900;
+
+function setAtmosphere(mode) {
+  document.getElementById('atmosphere').className = 'atmosphere' + (mode ? ' ' + mode : '');
+}
+
+function applyEffect(effect) {
+  if (!effect) return;
+  for (const key in effect) stats[key] = clamp(stats[key] + effect[key]);
+  updateStatsPanel();
+}
+
+function renderIllustration(illustKey) {
+  const holder = document.getElementById('illustration-holder');
+  holder.innerHTML = '';
+  if (illustKey && ILLUSTRATIONS[illustKey]) {
+    const wrap = document.createElement('div');
+    wrap.className = 'scene-illust';
+    wrap.innerHTML = ILLUSTRATIONS[illustKey];
+    holder.appendChild(wrap);
+  }
+}
+
+function renderLines(lines, container, onComplete) {
+  container.innerHTML = '';
+  let delay = 0;
+  lines.forEach((line) => {
+    if (line.t === 'photo') {
+      const photoDiv = document.createElement('div');
+      photoDiv.className = 'photo';
+      photoDiv.innerHTML = '<div class="frame"><div class="photo-label">' + line.label +
+        '</div><div class="photo-desc">' + line.desc.replace(/\n/g, '<br>') + '</div></div>';
+      photoDiv.style.animationDelay = delay + 'ms';
+      container.appendChild(photoDiv);
+      delay += 1400;
+      return;
+    }
+    const el = document.createElement('p');
+    if (line.t === 'pause') { el.className = 'pause'; el.textContent = line.text; }
+    else if (line.t === 'whisper') { el.className = 'whisper'; el.textContent = line.text; }
+    else if (line.t === 'x-voice') { el.className = 'x-voice'; el.innerHTML = line.text.replace(/\n/g, '<br>'); }
+    else if (line.t === 'water-voice') { el.className = 'water-voice'; el.innerHTML = line.text.replace(/\n/g, '<br>'); }
+    else if (line.t === 'letter') { el.className = 'letter'; el.innerHTML = line.text.replace(/\n/g, '<br>'); }
+    else { el.textContent = line.text; }
+    el.style.animationDelay = delay + 'ms';
+    container.appendChild(el);
+    delay += lineDelay;
+  });
+  if (onComplete) setTimeout(onComplete, delay + 300);
+}
+
+function showScene(sceneId) {
+  currentScene = sceneId;
+  saveGame();
+
+  const scene = STORY[sceneId];
+  if (!scene) {
+    if (ENDINGS[sceneId]) { showEnding(sceneId); return; }
+    console.error('Unknown scene:', sceneId);
+    return;
+  }
+
+  if (scene.atmosphere !== undefined) setAtmosphere(scene.atmosphere);
+  renderIllustration(scene.illust);
+
+  const chapterMark = document.getElementById('chapter-mark');
+  if (scene.chapter) {
+    chapterMark.textContent = scene.chapter;
+    chapterMark.style.display = 'block';
+    chapterMark.style.animation = 'none';
+    void chapterMark.offsetWidth;
+    chapterMark.style.animation = 'fadeIn 2s ease-out forwards';
+  } else {
+    chapterMark.style.display = 'none';
+  }
+
+  const narration = document.getElementById('narration');
+  const choicesEl = document.getElementById('choices');
+  const continueEl = document.getElementById('continue');
+  choicesEl.innerHTML = '';
+  choicesEl.classList.remove('show');
+  continueEl.innerHTML = '';
+  continueEl.classList.remove('show');
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  renderLines(scene.lines, narration, () => {
+    if (scene.choices) renderChoices(scene.choices, choicesEl);
+    else if (scene.continueTo) renderContinue(scene.continueTo, continueEl);
+  });
+}
+
+function renderChoices(choices, container) {
+  container.innerHTML = '';
+  choices.forEach(choice => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.textContent = choice.text;
+    btn.onclick = () => { applyEffect(choice.effect); transitionTo(choice.next); };
+    container.appendChild(btn);
+  });
+  container.classList.add('show');
+}
+
+function renderContinue(nextScene, container) {
+  container.innerHTML = '';
+  const btn = document.createElement('button');
+  btn.textContent = '계속';
+  btn.onclick = () => transitionTo(nextScene);
+  container.appendChild(btn);
+  container.classList.add('show');
+}
+
+function transitionTo(sceneId) {
+  const fade = document.getElementById('fade');
+  fade.classList.add('active');
+  setTimeout(() => {
+    showScene(sceneId);
+    setTimeout(() => fade.classList.remove('active'), 200);
+  }, 1200);
+}
+
+function showEnding(endingId) {
+  currentScene = endingId;
+  saveGame();
+  const ending = ENDINGS[endingId];
+  if (ending.atmosphere) setAtmosphere(ending.atmosphere);
+  renderIllustration(ending.illust);
+
+  document.getElementById('chapter-mark').style.display = 'none';
+  const narration = document.getElementById('narration');
+  const choicesEl = document.getElementById('choices');
+  const continueEl = document.getElementById('continue');
+  choicesEl.innerHTML = '';
+  continueEl.innerHTML = '';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  renderLines(ending.lines, narration, () => {
+    const endDiv = document.createElement('div');
+    endDiv.className = 'ending';
+    endDiv.style.opacity = '0';
+    endDiv.innerHTML =
+      '<div class="ending-mark">' + ending.mark + '</div>' +
+      '<div class="ending-title ' + ending.titleClass + '">' + ending.title + '</div>' +
+      '<div class="ending-verse">' + ending.verse + '<cite>' + ending.cite + '</cite></div>' +
+      '<p style="color:var(--bone); font-size:1.05rem; margin:2rem 0; line-height:1.9;">' + ending.closing + '</p>';
+    continueEl.appendChild(endDiv);
+    continueEl.classList.add('show');
+
+    const restartBtn = document.createElement('button');
+    restartBtn.style.cssText = 'margin-top:1.5rem; background:transparent; border:1px solid var(--dust); color:var(--bone); font-family:"Nanum Myeongjo",serif; font-size:0.9rem; letter-spacing:0.2em; padding:0.9rem 2.5rem; cursor:pointer; transition:all 0.4s;';
+    restartBtn.textContent = '다시 광야에서';
+    restartBtn.onmouseover = () => { restartBtn.style.borderColor = 'var(--ember)'; restartBtn.style.color = 'var(--ember-soft)'; };
+    restartBtn.onmouseout = () => { restartBtn.style.borderColor = 'var(--dust)'; restartBtn.style.color = 'var(--bone)'; };
+    restartBtn.onclick = () => { clearSave(); location.reload(); };
+    endDiv.appendChild(restartBtn);
+
+    setTimeout(() => { endDiv.style.transition = 'opacity 2s ease-out'; endDiv.style.opacity = '1'; }, 600);
+  });
+}
+
+// ============================================
+// 스탯 패널
+// ============================================
+function updateStatsPanel() {
+  document.getElementById('stat-water').style.width = stats.water + '%';
+  document.getElementById('stat-faith').style.width = stats.faith + '%';
+  document.getElementById('stat-confusion').style.width = stats.confusion + '%';
+  document.getElementById('stat-water-val').textContent = describeStat(stats.water);
+  document.getElementById('stat-faith-val').textContent = describeStat(stats.faith);
+  document.getElementById('stat-confusion-val').textContent = describeStat(stats.confusion);
+}
+function describeStat(v) {
+  if (v >= 80) return '가득';
+  if (v >= 55) return '넉넉';
+  if (v >= 35) return '보통';
+  if (v >= 15) return '희미';
+  return '메마름';
+}
+function toggleStats() {
+  document.getElementById('stats-panel').classList.toggle('show');
+  updateStatsPanel();
+}
+
+// ============================================
+// 저장 / 불러오기
+// ============================================
+function saveGame() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ stats, currentScene })); } catch (e) {}
+}
+function loadGame() {
+  try {
+    const data = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (data && data.currentScene && data.currentScene !== 'start') return data;
+  } catch (e) {}
+  return null;
+}
+function clearSave() {
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+}
+
+function startGame() {
+  clearSave();
+  stats = { water: 50, faith: 30, confusion: 40 };
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('scene').classList.add('active');
+  const fade = document.getElementById('fade');
+  fade.classList.add('active');
+  setTimeout(() => {
+    showScene('start');
+    setTimeout(() => fade.classList.remove('active'), 200);
+  }, 800);
+}
+
+function resumeGame() {
+  const data = loadGame();
+  if (!data) { startGame(); return; }
+  stats = data.stats;
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('scene').classList.add('active');
+  const fade = document.getElementById('fade');
+  fade.classList.add('active');
+  setTimeout(() => {
+    if (ENDINGS[data.currentScene]) showEnding(data.currentScene);
+    else showScene(data.currentScene);
+    setTimeout(() => fade.classList.remove('active'), 200);
+  }, 800);
+}
+
+function confirmRestart() {
+  if (confirm('처음부터 다시 시작하시겠습니까? 지금까지의 여정은 사라집니다.')) {
+    clearSave();
+    location.reload();
+  }
+}
+
+// ============================================
+// 떠다니는 먼지 파티클
+// ============================================
+function spawnDust() {
+  const particle = document.createElement('div');
+  particle.className = 'dust-particle';
+  const startX = Math.random() * window.innerWidth;
+  const drift = (Math.random() - 0.5) * 200;
+  const duration = 8000 + Math.random() * 8000;
+  particle.style.left = startX + 'px';
+  particle.style.top = (window.innerHeight + 10) + 'px';
+  document.body.appendChild(particle);
+  const anim = particle.animate([
+    { transform: 'translate(0px, 0px)', opacity: 0 },
+    { opacity: 0.5, offset: 0.1 },
+    { opacity: 0.5, offset: 0.85 },
+    { transform: 'translate(' + drift + 'px, -' + (window.innerHeight + 40) + 'px)', opacity: 0 }
+  ], { duration, easing: 'linear' });
+  anim.onfinish = () => particle.remove();
+}
+setInterval(spawnDust, 1400);
+
+// ============================================
+// 초기화
+// ============================================
+window.addEventListener('DOMContentLoaded', () => {
+  if (loadGame()) document.getElementById('resume-link').style.display = 'block';
+  updateStatsPanel();
+});
+</script>
+
+</body>
+</html>
